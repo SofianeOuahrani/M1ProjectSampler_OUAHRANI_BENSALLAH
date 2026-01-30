@@ -1,0 +1,186 @@
+<html lang="fr">
+<head>
+    <meta charset="utf-8">
+    <title>Mon Custom Sampler</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" href="css/styles.css">
+
+    <script src="js/main.js" type="module"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="container">
+    <h1>Mon Custom Sampler</h1>
+    <p class="subtitle">
+        Clic Droit : Renommer | Clic Gauche : Éditer | Clavier : A-Z |
+        <a href="test_headless.html" class="test-link">🧪 Test Headless</a>
+    </p>
+
+    <div class="main-layout">
+
+        <div class="column library-panel">
+            <h3>Bibliothèque</h3>
+            <div class="library-controls">
+                <div class="control-group">
+                    <label for="categorySelect">Catégorie :</label>
+                    <select id="categorySelect">
+                        <option value="all">Tous les kits</option>
+                        <option value="factory">📁 Presets de base</option>
+                        <option value="custom">👤 Custom (Mes créations)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="presetSelect">Kits Locaux :</label>
+                    <select id="presetSelect">
+                        <option value="" disabled selected>Choisir un kit...</option>
+                    </select>
+                </div>
+
+                <button id="savePresetBtn" class="action-btn">💾 Sauvegarder ce Kit</button>
+
+                <div class="control-group freesound-search">
+                    <label>Freesound.org :</label>
+                    <div class="search-row">
+                        <input type="text" id="fsSearchInput" placeholder="Kick, Snare...">
+                        <button id="fsSearchBtn" title="Rechercher">🔎</button>
+                    </div>
+                </div>
+            </div>
+
+            <ul id="library-list">
+                <li class="empty-msg">Sélectionnez un preset ou cherchez sur Freesound.</li>
+            </ul>
+
+            <!-- Mini lecteur pour preview -->
+            <div id="preview-player" class="preview-player" style="display: none;">
+                <span id="preview-name">-</span>
+                <div class="preview-controls">
+                    <button id="previewPlayBtn" title="Play/Stop">▶</button>
+                    <div class="preview-progress">
+                        <div id="previewProgressBar"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="column pads-area">
+            <div id="sampler-pads">
+                <div class="placeholder-msg">
+                    Votre kit est vide.<br>
+                    Ajoutez des sons !
+                </div>
+            </div>
+        </div>
+
+        <div class="column tools-panel">
+
+            <div class="tool-box recorder-box">
+                <h3>Microphone</h3>
+                <div class="rec-interface">
+                    <button id="recordButton" type="button">REC</button>
+                    <span class="rec-status">Prêt</span>
+                </div>
+                <div class="rec-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="autoSliceCheckbox">
+                        <span>Auto-découpe (détection silences)</span>
+                    </label>
+                    <div class="threshold-control" id="thresholdControl" style="display: none;">
+                        <label>Seuil : <span id="thresholdValue">-40</span> dB</label>
+                        <input type="range" id="thresholdSlider" min="-60" max="-20" value="-40">
+                    </div>
+                </div>
+            </div>
+
+            <div class="tool-box editor-box">
+                <h3>Éditeur & Effets</h3>
+
+                <div id="timeDisplay" class="time-display">-- / --</div>
+
+                <div class="controls">
+                    <button id="playButton" disabled>Play Son</button>
+                    <button id="pauseButton">Pause</button>
+                    <button id="loopButton">Loop</button>
+                </div>
+
+                <div class="wrapper">
+                    <canvas id="myCanvas" width="340" height="100"></canvas>
+                    <canvas id="myCanvasOverlay" width="340" height="100"></canvas>
+                </div>
+
+                <div class="fx-controls">
+                    <div class="fx-group speed-group">
+                        <label>Vitesse</label>
+                        <input type="number" id="speedInput" min="0.1" max="4.0" step="0.1" value="1.0">
+                    </div>
+                    <div class="fx-group">
+                        <label>Disto</label>
+                        <input type="range" id="distoSlider" min="0" max="100" value="0">
+                    </div>
+                    <div class="fx-group">
+                        <label>Filtre</label>
+                        <input type="range" id="filterSlider" min="0" max="100" value="100">
+                    </div>
+                    <div class="fx-group">
+                        <label>Reverb</label>
+                        <input type="range" id="reverbSlider" min="0" max="100" value="0">
+                    </div>
+                </div>
+
+                <!-- Effets individuels par pad -->
+                <div class="pad-fx-controls">
+                    <h4>Effets du Pad</h4>
+                    <div class="pad-fx-row">
+                        <div class="fx-group">
+                            <label>Volume</label>
+                            <input type="range" id="padVolumeSlider" min="0" max="150" value="100">
+                            <span id="padVolumeValue">100%</span>
+                        </div>
+                        <div class="fx-group">
+                            <label>Pan L/R</label>
+                            <input type="range" id="padPanSlider" min="-100" max="100" value="0">
+                            <span id="padPanValue">C</span>
+                        </div>
+                        <div class="fx-group">
+                            <label>Reverse</label>
+                            <button id="padReverseBtn" class="fx-toggle-btn">🔄</button>
+                        </div>
+                        <div class="fx-group">
+                            <label>Pitch</label>
+                            <input type="range" id="padPitchSlider" min="-12" max="12" value="0">
+                            <span id="padPitchValue">0</span>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="sequencer-panel">
+        <div class="sequencer-header">
+            <h3>Séquenceur</h3>
+            <div class="seq-controls">
+                <button id="seqPlayBtn">▶ Play</button>
+                <button id="seqPauseBtn">⏸ Pause</button>
+                <button id="seqStopBtn">⏹ Stop</button>
+                <button id="seqRecBtn" class="rec-mode-btn">🔴 Rec Mode</button>
+
+                <label>BPM:</label>
+                <input type="number" id="bpmInput" value="120" min="40" max="240">
+                <input type="range" id="bpmSlider" value="120" min="40" max="240">
+            </div>
+        </div>
+
+        <div id="sequencer-grid">
+            <p class="empty-seq-msg">Ajoutez des pads pour voir la grille.</p>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

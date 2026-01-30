@@ -1,0 +1,54 @@
+<div class="container">
+  <div class="header">
+    <h2>🎛️ Gestion des Kits (Presets)</h2>
+    <button
+      class="btn btn-create"
+      (click)="toggleCreateForm()"
+      *ngIf="!showCreateForm"
+    >
+      ➕ Nouveau Preset
+    </button>
+  </div>
+
+  <app-preset-form
+    *ngIf="showCreateForm"
+    (presetCreated)="onPresetCreated($event)"
+    (cancelled)="onFormCancelled()"
+  ></app-preset-form>
+
+  <div *ngIf="loading" class="state-msg">Chargement des données...</div>
+  <div *ngIf="error" class="state-msg error">{{ error }}</div>
+
+  <ul *ngIf="!loading && !error" class="preset-list">
+    <li *ngFor="let preset of presets" class="preset-item">
+
+      <div class="info-row" *ngIf="editingName !== preset.name">
+        <div class="preset-info">
+          <span class="preset-name">{{ preset.name }}</span>
+          <span class="badge factory" *ngIf="preset.isFactoryPresets">Usine</span>
+          <span class="badge user" *ngIf="!preset.isFactoryPresets">Custom</span>
+          <span class="sound-count">{{ getSoundCount(preset) }} sons</span>
+        </div>
+
+        <div class="actions">
+          <ng-container *ngIf="!preset.isFactoryPresets">
+            <button class="btn btn-edit" (click)="startEdit(preset)">✏️</button>
+            <button class="btn btn-delete" (click)="deletePreset(preset.name)">🗑️</button>
+          </ng-container>
+          <span *ngIf="preset.isFactoryPresets">🔒</span>
+        </div>
+      </div>
+
+      <div class="edit-row" *ngIf="editingName === preset.name">
+        <input type="text" [(ngModel)]="editValue" (keyup.enter)="saveEdit(preset)" class="edit-input">
+        <button class="btn btn-save" (click)="saveEdit(preset)">OK</button>
+        <button class="btn btn-cancel" (click)="cancelEdit()">Annuler</button>
+      </div>
+
+    </li>
+  </ul>
+
+  <p *ngIf="presets.length === 0 && !loading" class="empty-msg">
+    Aucun preset trouvé.
+  </p>
+</div>

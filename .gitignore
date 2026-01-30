@@ -1,0 +1,14 @@
+# Dépendances
+node_modules/
+.DS_Store
+
+# Environnement et Secrets
+.env
+
+# IDE
+.idea/
+.vscode/
+
+# Build Angular
+dist/
+.angular/

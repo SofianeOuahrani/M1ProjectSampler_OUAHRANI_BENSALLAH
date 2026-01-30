@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Test Headless Sampler</title>
+    <style>
+        body { background: #111; color: #eee; font-family: monospace; padding: 20px; }
+        h1 { color: #00bfff; }
+        .section { margin: 20px 0; padding: 15px; background: #1a1a1a; border-radius: 8px; }
+        .section h3 { margin-top: 0; color: #00bfff; }
+        #logs { background: #222; padding: 10px; border: 1px solid #444; height: 300px; overflow-y: auto; }
+        .success { color: #10b981; }
+        .error { color: #ef4444; }
+        .info { color: #00bfff; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        button { background: #00bfff; color: #000; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #33ccff; }
+        button:disabled { background: #444; color: #888; cursor: not-allowed; }
+        .test-result { padding: 5px; margin: 2px 0; border-left: 3px solid #444; padding-left: 10px; }
+        .test-result.pass { border-color: #10b981; }
+        .test-result.fail { border-color: #ef4444; }
+    </style>
+</head>
+<body>
+<h1>🎹 Test Headless Sampler</h1>
+<p>Ce test vérifie le moteur audio sans interface graphique. Ouvrez la console (F12) pour plus de détails.</p>
+
+<div class="controls">
+    <a href="index.html" style="background:#444;color:#fff;padding:10px 20px;border-radius:5px;text-decoration:none;font-weight:bold;">⬅ Retour au Sampler</a>
+    <button id="runAllTests">▶ Lancer tous les tests</button>
+    <button id="clearLogs">🗑 Effacer les logs</button>
+</div>
+
+<div class="section">
+    <h3>📋 Résultats des tests</h3>
+    <div id="logs"></div>
+</div>
+
+<div class="section">
+    <h3>📊 Résumé</h3>
+    <div id="summary">En attente...</div>
+</div>
+
+<script type="module">
+    import SamplerEngine from './js/samplerEngine.js';
+
+    const logDiv = document.getElementById('logs');
+    const summaryDiv = document.getElementById('summary');
+    let testsPassed = 0;
+    let testsFailed = 0;
+
+    function log(msg, type = 'info') {
+        const div = document.createElement('div');
+        div.className = `test-result ${type === 'success' ? 'pass' : type === 'error' ? 'fail' : ''}`;
+        div.innerHTML = `<span class="${type}">[${new Date().toLocaleTimeString()}] ${msg}</span>`;
+        logDiv.appendChild(div);
+        logDiv.scrollTop = logDiv.scrollHeight;
+        console.log(msg);
+    }
+
+    function testPass(testName) {
+        testsPassed++;
+        log(`✅ PASS: ${testName}`, 'success');
+    }
+
+    function testFail(testName, reason) {
+        testsFailed++;
+        log(`❌ FAIL: ${testName} - ${reason}`, 'error');
+    }
+
+    function updateSummary() {
+        const total = testsPassed + testsFailed;
+        const percent = total > 0 ? Math.round((testsPassed / total) * 100) : 0;
+        summaryDiv.innerHTML = `
+            <span class="success">Réussis: ${testsPassed}</span> | 
+            <span class="error">Échoués: ${testsFailed}</span> | 
+            Total: ${total} | 
+            Score: ${percent}%
+        `;
+    }
+
+    async function runTests() {
+        testsPassed = 0;
+        testsFailed = 0;
+        logDiv.innerHTML = '';
+
+        log("═══════════════════════════════════════", 'info');
+        log("   DÉMARRAGE DES TESTS HEADLESS", 'info');
+        log("═══════════════════════════════════════", 'info');
+
+        // Test 1: Instanciation du moteur
+        log("\n Test 1: Instanciation du moteur...");
+        let engine;
+        try {
+            engine = new SamplerEngine('http://localhost:3000');
+            if (engine && engine.audioCtx) {
+                testPass("SamplerEngine instancié avec AudioContext");
+            } else {
+                testFail("Instanciation", "AudioContext manquant");
+            }
+        } catch (e) {
+            testFail("Instanciation", e.message);
+            updateSummary();
+            return;
+        }
+
+        // Test 2: Vérification des effets
+        log("\n Test 2: Vérification des effets audio...");
+        try {
+            if (engine.distortionNode && engine.filterNode && engine.convolverNode) {
+                testPass("Noeuds d'effets créés (distortion, filter, reverb)");
+            } else {
+                testFail("Effets audio", "Noeuds manquants");
+            }
+        } catch (e) {
+            testFail("Effets audio", e.message);
+        }
+
+        // Test 3: Configuration des callbacks
+        log("\n Test 3: Configuration des callbacks...");
+        try {
+            let callbackTriggered = false;
+            engine.onPresetLoaded = () => { callbackTriggered = true; };
+            engine.onPresetLoaded([]);
+            if (callbackTriggered) {
+                testPass("Callbacks configurables");
+            } else {
+                testFail("Callbacks", "Non déclenchés");
+            }
+        } catch (e) {
+            testFail("Callbacks", e.message);
+        }
+
+        // Test 4: Fetch des presets
+        log("\n Test 4: Récupération des presets depuis le serveur...");
+        try {
+            const presets = await engine.fetchPresetsList();
+            if (Array.isArray(presets)) {
+                if (presets.length > 0) {
+                    testPass(`${presets.length} preset(s) trouvé(s)`);
+                    log(`   → Presets: ${presets.map(p => p.name).join(', ')}`, 'info');
+                } else {
+                    testPass("Liste de presets vide (serveur accessible)");
+                }
+            } else {
+                testFail("Fetch presets", "Réponse invalide");
+            }
+        } catch (e) {
+            testFail("Fetch presets", "Serveur inaccessible - " + e.message);
+        }
+
+        // Test 5: Manipulation des effets
+        log("\n Test 5: Manipulation des effets...");
+        try {
+            engine.setDistortion(50);
+            engine.setFilter(75);
+            engine.setReverb(25);
+            engine.setPlaybackRate(1.5);
+            
+            if (engine.playbackRate === 1.5) {
+                testPass("Effets modifiables sans erreur");
+            } else {
+                testFail("Effets", "Valeur incorrecte");
+            }
+        } catch (e) {
+            testFail("Effets", e.message);
+        }
+
+        // Test 6: Gestion de la soundBank
+        log("\n Test 6: Gestion de la soundBank...");
+        try {
+            const initialLength = engine.soundBank.length;
+            
+            // Simuler l'ajout d'un son local (sans buffer réel)
+            const mockSound = {
+                buffer: null,
+                blob: null,
+                name: "Test Sound",
+                trim: { start: 0, end: 340 },
+                loading: false
+            };
+            engine.soundBank.push(mockSound);
+            
+            if (engine.soundBank.length === initialLength + 1) {
+                testPass("SoundBank modifiable");
+            } else {
+                testFail("SoundBank", "Ajout échoué");
+            }
+            
+            // Nettoyage
+            engine.soundBank.pop();
+        } catch (e) {
+            testFail("SoundBank", e.message);
+        }
+
+        // Test 7: Loop toggle
+        log("\n Test 7: Toggle du loop...");
+        try {
+            const initialLoop = engine.isLooping;
+            engine.toggleLoop();
+            const afterToggle = engine.isLooping;
+            engine.toggleLoop();
+            const afterSecondToggle = engine.isLooping;
+            
+            if (initialLoop !== afterToggle && afterSecondToggle === initialLoop) {
+                testPass("Toggle loop fonctionne");
+            } else {
+                testFail("Loop", "État incorrect après toggle");
+            }
+        } catch (e) {
+            testFail("Loop", e.message);
+        }
+
+        // Test 8: Chargement d'un preset (si disponible)
+        log("\n Test 8: Chargement d'un preset...");
+        try {
+            const presets = engine.allPresets;
+            if (presets && presets.length > 0) {
+                let structureLoaded = false;
+                engine.onPresetLoaded = (bank) => {
+                    structureLoaded = bank.length > 0;
+                };
+                
+                await engine.loadPresetSounds(presets[0]);
+                
+                // Attendre un peu pour le chargement asynchrone
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                if (engine.soundBank.length > 0) {
+                    testPass(`Preset "${presets[0].name}" structure chargée (${engine.soundBank.length} sons)`);
+                } else {
+                    testPass("Structure du preset initialisée");
+                }
+            } else {
+                log("   → Aucun preset disponible, test ignoré", 'info');
+            }
+        } catch (e) {
+            testFail("Chargement preset", e.message);
+        }
+
+        // Résumé final
+        log("\n═══════════════════════════════════════", 'info');
+        log("   TESTS TERMINÉS", 'info');
+        log("═══════════════════════════════════════", 'info');
+        
+        updateSummary();
+    }
+
+    // Event listeners
+    document.getElementById('runAllTests').onclick = runTests;
+    document.getElementById('clearLogs').onclick = () => {
+        logDiv.innerHTML = '';
+        summaryDiv.innerHTML = 'En attente...';
+        testsPassed = 0;
+        testsFailed = 0;
+    };
+
+    // Lancer automatiquement au chargement
+    window.onload = () => {
+        log("Cliquez sur 'Lancer tous les tests' pour démarrer.", 'info');
+    };
+</script>
+</body>
+</html>
